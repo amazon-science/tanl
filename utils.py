@@ -100,7 +100,7 @@ def augment_sentence(tokens: List[str], augmentations: List[Tuple[List[tuple], i
 
     # check that the entities have a tree structure (if two entities overlap, then one is contained in
     # the other), and build the entity tree
-    root = (None, 0, len(tokens))   # this node represents the entire sentence
+    root = (None, -1, len(tokens))  # this node represents the entire sentence
     entity_tree = {root[1:]: []}    # list of children of each node
     current_stack = [root]          # where we are in the tree
 
