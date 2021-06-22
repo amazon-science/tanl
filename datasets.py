@@ -1092,8 +1092,6 @@ class ACE2005EventDataset(ACE2005EventArgumentDataset):
         def filter_relation_tuple(relation_tuple):
             return relation_tuple[0], relation_tuple[1][1:], relation_tuple[2]
 
-        # filter_relation_tuple = lambda relation_tuple: (
-        #     relation_tuple[0], relation_tuple[1][1:], relation_tuple[2])
         gt_relations = set(filter_relation_tuple(relation.to_tuple()) for relation in example.relations)
 
         # load ground truth relations to only have relations that are valid (exist in relation_schema)
@@ -1447,7 +1445,7 @@ class RelationClassificationDataset(JointERDataset):
                 attention_mask=x['attention_mask'].to(model.device),
                 labels=y['input_ids'].to(model.device)
             )
-            scores.append(res[0].detach())    # res[0] is the log likelihood
+            scores.append(res[0].cpu().detach())    # res[0] is the log likelihood
 
         scores = np.array(scores)
         min_idx = scores.argmin()
