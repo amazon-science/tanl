@@ -1,6 +1,6 @@
 # TANL: Structured Prediction as Translation between Augmented Natural Languages
 
-Code for the paper "[Structured Prediction as Translation between Augmented Natural Languages](http://arxiv.org/abs/2101.05779)" (ICLR 2021).
+Code for the paper "[Structured Prediction as Translation between Augmented Natural Languages](http://arxiv.org/abs/2101.05779)" (ICLR 2021) and [fine-tuned multi-task model](#fine-tuned-multi-task-model).
 
 If you use this code, please cite the paper using the bibtex reference below.
 ```
@@ -118,7 +118,7 @@ See the [sample config file](config.ini) to understand the format.
 See [arguments.py](arguments.py) and [transformers.TrainingArguments](https://github.com/huggingface/transformers/blob/master/src/transformers/training_args.py) for additional config arguments.
 
 
-## Fine-tuned Multi-task model
+## Fine-tuned multi-task model
 
 The weights of our multi-task model (released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/)) can be downloaded here: https://tanl.s3.amazonaws.com/tanl-multitask.zip
 
