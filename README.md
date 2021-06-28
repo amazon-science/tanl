@@ -116,3 +116,20 @@ See the [sample config file](config.ini) to understand the format.
 - `multitask` (bool): if True, the name of the dataset is prepended to each input sentence (default is False)
 
 See [arguments.py](arguments.py) and [transformers.TrainingArguments](https://github.com/huggingface/transformers/blob/master/src/transformers/training_args.py) for additional config arguments.
+
+
+## Multi-task model
+
+The weights of our multi-task model (released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/)) can be downloaded here: https://tanl.s3.amazonaws.com/tanl-multitask.zip
+
+Extract the zip file in the `experiments/` directory. This will create a subdirectory called `multitask-t5-base-ep50-len512-b8-train,dev-overlap96`. For example, to test the multi-task model on the CoNLL04 dataset, run `python run.py multitask -e --eval_datasets conll04`.
+
+Note that: the `multitask` job is defined in [config.ini](config.ini); the `-e` flag is used to skip training and run evaluation only; the name of the subdirectory containing the weights is compatible with the definition of the `multitask` job.
+
+The multi-task model was trained as described in the paper. The results differ slightly from what is reported in the paper due to small code changes.
+
+
+## Licenses
+
+The code of this repository is released under the [Apache 2.0 license](LICENSE).
+The weights of the multi-task model are released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
