@@ -118,7 +118,7 @@ See the [sample config file](config.ini) to understand the format.
 See [arguments.py](arguments.py) and [transformers.TrainingArguments](https://github.com/huggingface/transformers/blob/master/src/transformers/training_args.py) for additional config arguments.
 
 
-## Multi-task model
+## Multi-task model used in the paper
 
 The weights of our multi-task model (released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/)) can be downloaded here: https://tanl.s3.amazonaws.com/tanl-multitask.zip
 
@@ -132,4 +132,4 @@ The multi-task model was trained as described in the paper. The results differ s
 ## Licenses
 
 The code of this repository is released under the [Apache 2.0 license](LICENSE).
-The weights of the multi-task model are released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
+The weights of the [multi-task model used in the paper](#multi-task-model-used-in-the-paper) are released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
