@@ -118,7 +118,7 @@ See the [sample config file](config.ini) to understand the format.
 See [arguments.py](arguments.py) and [transformers.TrainingArguments](https://github.com/huggingface/transformers/blob/master/src/transformers/training_args.py) for additional config arguments.
 
 
-## Multi-task model used in the paper
+## Fine-tuned Multi-task model
 
 The weights of our multi-task model (released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/)) can be downloaded here: https://tanl.s3.amazonaws.com/tanl-multitask.zip
 
@@ -126,10 +126,10 @@ Extract the zip file in the `experiments/` directory. This will create a subdire
 
 Note that: the `multitask` job is defined in [config.ini](config.ini); the `-e` flag is used to skip training and run evaluation only; the name of the subdirectory containing the weights is compatible with the definition of the `multitask` job.
 
-The multi-task model was trained as described in the paper. The results differ slightly from what is reported in the paper due to small code changes.
+The multi-task model was fine-tuned as described in the paper. The results differ slightly from what is reported in the paper due to small code changes.
 
 
 ## Licenses
 
 The code of this repository is released under the [Apache 2.0 license](LICENSE).
-The weights of the [multi-task model used in the paper](#multi-task-model-used-in-the-paper) are released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
+The weights of the [fine-tuned multi-task model](#fine-tuned-multi-task-model) are released under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
