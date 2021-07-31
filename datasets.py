@@ -17,7 +17,7 @@ import torch
 from transformers import PreTrainedTokenizer
 
 from arguments import DataTrainingArguments
-from input_example import InputFeatures, EntityType, RelationType, Entity, Relation, InputExample, CorefDocument
+from input_example import InputFeatures, EntityType, RelationType, Entity, Relation, Intent, InputExample, CorefDocument
 from base_dataset import BaseDataset
 from utils import get_precision_recall_f1
 from coreference_metrics import CorefAllMetrics
@@ -694,6 +694,366 @@ class OntonotesDataset(NERDataset):
         'TIME': 'time',
         'WORK_OF_ART': 'work_of_art',
     }
+
+
+@register_dataset
+class SnipsDataset(NERDataset):
+    name = 'snips'
+
+    default_output_format = 'joint_icsl'
+
+    natural_entity_types = {
+        'entity_name': 'entity name',
+        'playlist_owner': 'playlist owner',
+        'playlist': 'playlist',
+        'music_item': 'music item',
+        'artist': 'artist',
+        'party_size_description': 'party size description',
+        'party_size_number': 'party size number',
+        'restaurant_type': 'restaurant type',
+        'spatial_relation': 'spatial relation',
+        'state': 'state',
+        'cuisine': 'cuisine',
+        'poi': 'poi',
+        'country': 'country',
+        'city': 'city',
+        'timeRange': 'time range',
+        'facility': 'facility',
+        'served_dish': 'served dish',
+        'condition_description': 'condition description',
+        'geographic_poi': 'geographic poi',
+        'condition_temperature': 'condition temperature',
+        'current_location': 'current location',
+        'album': 'album',
+        'service': 'service',
+        'sort': 'sort',
+        'track': 'track',
+        'year': 'year',
+        'object_name': 'object name',
+        'rating_value': 'rating value',
+        'best_rating': 'best rating',
+        'rating_unit': 'rating unit',
+        'object_select': 'object select',
+        'object_part_of_series_type': 'object part of series type',
+        'movie_name': 'movie name',
+        'location_name': 'location name',
+        'object_location_type': 'object location type',
+        'movie_type': 'movie type'
+    }
+
+    natural_intent_types = {
+        'AddToPlaylist': 'add to playlist',
+        'BookRestaurant': 'book restaurant',
+        'GetWeather': 'get weather',
+        'PlayMusic': 'play music',
+        'RateBook': 'rate book',
+        'SearchCreativeWork': 'search creative work',
+        'SearchScreeningEvent': 'search screening event'
+    }
+
+    def convert_bio_to_entities(self, bio_tag: List[str]) -> Tuple[List[Entity], Entity]:
+        entities = []
+        current_entity = None
+        for ii, el in enumerate(bio_tag):
+            if el.startswith('B-'):
+                tag_type = el[2:]
+                current_entity = Entity(
+                    type=EntityType(
+                        short=tag_type,
+                        natural=self.natural_entity_types[tag_type]
+                        if tag_type in self.natural_entity_types else tag_type
+                    ),
+                    start=ii,
+                    end=ii+1,
+                )
+                entities.append(current_entity)
+            elif el.startswith('I-'):
+                current_entity.end = ii + 1
+        return entities
+
+
+    def load_data_single_split(self, split: str, seed: int = None) -> List[InputExample]:
+        """
+        Load data for a single split (train, dev, or test).
+        """
+        file_path = os.path.join(self.data_dir(), f'{split}.tsv')
+        examples = []
+
+        with open(file_path, 'r') as f:
+            data = f.readlines()[1:]    # skip header
+            for id, example in enumerate(data):
+                uid, cid, turn, author, utterance, short_intent, act, slot_labels = example.strip().split('\t')
+                tokens = utterance.split()
+
+                slot_labels = slot_labels.split()
+                entities = self.convert_bio_to_entities(slot_labels)
+
+                intent = Intent(
+                    short=short_intent,
+                    natural=self.natural_intent_types[short_intent]
+                    if short_intent in self.natural_intent_types.keys() else short_intent
+                )
+
+                example = InputExample(
+                    id=f'{split}-{id}',
+                    tokens=tokens,
+                    intent=intent,
+                    entities=entities,
+                )
+
+                examples.append(example)
+
+        self.entity_types = {
+            entity.type.natural: entity.type
+            for example in examples for entity in example.entities
+        }
+        self.intents = {
+            example.intent.natural: example.intent
+            for example in examples
+        }
+
+        return examples
+
+
+    def evaluate_example(self, example: InputExample, output_sentence: str, model=None, tokenizer=None) -> Counter:
+        """
+        Evaluate an output sentence on a single example of this dataset.
+        """
+        # extract entities and relations from output sentence
+        res = self.output_format.run_inference(
+            example,
+            output_sentence,
+            entity_types=self.entity_types,
+        )
+        predicted_intent, predicted_entities, wrong_reconstruction = res
+
+        label_error = entity_error = format_error = False
+
+        predicted_entities_no_type = set([entity[1:] for entity in predicted_entities])
+
+        # load ground truth entities
+        gt_entities = set(entity.to_tuple() for entity in example.entities)
+        gt_entities_no_type = set([entity[1:] for entity in gt_entities])
+
+        # compute correct entities
+        correct_entities = predicted_entities & gt_entities
+        correct_entities_no_type = gt_entities_no_type & predicted_entities_no_type
+
+        # load ground truth intent
+        gt_intent = example.intent
+
+        # print(f"Ground truth: {gt_intent} ||| Predicted: {predicted_intent}")
+
+        # compute correct intent
+        correct_intent = int(predicted_intent == gt_intent.natural)
+
+
+        assert len(correct_entities) <= len(predicted_entities)
+        assert len(correct_entities) <= len(gt_entities)
+        assert len(correct_entities_no_type) <= len(predicted_entities_no_type)
+        assert len(correct_entities_no_type) <= len(gt_entities_no_type)
+
+        res = Counter({
+            'num_sentences': 1,
+            'wrong_reconstructions': 1 if wrong_reconstruction else 0,
+            'label_error': 1 if label_error else 0,
+            'entity_error': 1 if entity_error else 0,
+            'format_error': 1 if format_error else 0, 
+            'predicted_intent': 1 if len(predicted_intent) > 0 else 0,
+            'gt_intent': 1,
+            'correct_intent': correct_intent,
+            'gt_entities': len(gt_entities),
+            'predicted_entities': len(predicted_entities),
+            'correct_entities': len(correct_entities),
+            'gt_entities_no_type': len(gt_entities_no_type),
+            'predicted_entities_no_type': len(predicted_entities_no_type),
+            'correct_entities_no_type': len(correct_entities_no_type),
+        })
+        
+        if self.intents is not None:
+            for intent_type in self.intents.values():
+                predicted = int(predicted_intent == intent_type.natural)
+                gt = int(gt_intent.natural == intent_type.natural)
+                correct = int(predicted_intent == gt_intent.natural)
+                res['predicted_intent', intent_type.natural] = predicted
+                res['gt_intent', intent_type.natural] = gt
+                res['correct_intent', intent_type.natural] = correct
+
+        # add information about each entity/relation type so that we can compute the macro-F1 scores
+        if self.entity_types is not None:
+            for entity_type in self.entity_types.values():
+                predicted = set(entity for entity in predicted_entities if entity[0] == entity_type.natural)
+                gt = set(entity for entity in gt_entities if entity[0] == entity_type.natural)
+                correct = predicted & gt
+                res['predicted_entities', entity_type.natural] = len(predicted)
+                res['gt_entities', entity_type.natural] = len(gt)
+                res['correct_entities', entity_type.natural] = len(correct)
+
+        return res
+
+    def evaluate_dataset(self, data_args: DataTrainingArguments, model, device, batch_size: int, macro: bool = False) \
+            -> Dict[str, float]:
+        """
+        Evaluate model on this dataset.
+        """
+        results = Counter()
+
+        for example, output_sentence in self.generate_output_sentences(data_args, model, device, batch_size):
+            new_result = self.evaluate_example(
+                    example=example,
+                    output_sentence=output_sentence,
+                    model=model,
+                    tokenizer=self.tokenizer,
+                )
+            results += new_result
+
+        entity_precision, entity_recall, entity_f1 = get_precision_recall_f1(
+            num_correct=results['correct_entities'],
+            num_predicted=results['predicted_entities'],
+            num_gt=results['gt_entities'],
+        )
+
+        entity_precision_no_type, entity_recall_no_type, entity_f1_no_type = get_precision_recall_f1(
+            num_correct=results['correct_entities_no_type'],
+            num_predicted=results['predicted_entities_no_type'],
+            num_gt=results['gt_entities_no_type'],
+        )
+
+        entity_precision_by_type = []
+        entity_recall_by_type = []
+        entity_f1_by_type = []
+
+        if macro:
+            # compute also entity macro scores
+            for entity_type in self.entity_types.values():
+                precision, recall, f1 = get_precision_recall_f1(
+                    num_correct=results['correct_entities', entity_type.natural],
+                    num_predicted=results['predicted_entities', entity_type.natural],
+                    num_gt=results['gt_entities', entity_type.natural],
+                )
+                entity_precision_by_type.append(precision)
+                entity_recall_by_type.append(recall)
+                entity_f1_by_type.append(f1)
+
+        intent_precision, intent_recall, intent_f1 = get_precision_recall_f1(
+            num_correct=results['correct_intent'],
+            num_predicted=results['predicted_intent'],
+            num_gt=results['gt_intent']
+        )
+
+        res = {
+            'wrong_reconstruction': results['wrong_reconstructions'] / results['num_sentences'],
+            'label_error': results['label_error'] / results['num_sentences'],
+            'entity_error': results['entity_error'] / results['num_sentences'],
+            'format_error': results['format_error'] / results['num_sentences'],
+            'intent_precision': intent_precision,
+            'intent_recall': intent_recall,
+            'intent_f1': intent_f1,
+            'entity_precision': entity_precision,
+            'entity_recall': entity_recall,
+            'entity_f1': entity_f1,
+            'entity_precision_no_type': entity_precision_no_type,
+            'entity_recall_no_type': entity_recall_no_type,
+            'entity_f1_no_type': entity_f1_no_type,
+        }
+
+        if macro:
+            res.update({
+                'entity_macro_precision': np.mean(np.array(entity_precision_by_type)),
+                'entity_macro_recall': np.mean(np.array(entity_recall_by_type)),
+                'entity_macro_f1': np.mean(np.array(entity_f1_by_type)),
+            })
+
+        return res
+
+
+@register_dataset
+class ATISDataset(SnipsDataset):
+    name = 'atis'
+
+    default_output_format = 'joint_icsl'
+
+    natural_entity_types = {
+        'fromloc': 'from', 'toloc': 'to',
+        'city_name': 'city', 'state_code': 'state code', 'state_name': 'state name',
+        'country_name': 'country name',
+        'airport_code': 'airport code', 'airport_name': 'airport name',
+        'depart_date': 'depart date', 'arrive_date': 'arrive date',
+        'depart_time': 'depart time', 'arrive_time': 'arrive time',
+        'return_date': 'return date', 'return_time': 'return time',
+        'day_number': 'day number', 'day_name': 'day name', 'days_code': 'days code',
+        'month_name': 'month', 'year': 'year',
+        'date_relative': 'relative date', 'today_relative': 'relative today',
+        'period_of_day': 'period of day', 'time_relative': 'relative time',
+        'time': 'time', 'start_time': 'start time', 'end_time': 'end time',
+        'cost_relative': 'relative cost',
+        'airline_name': 'airline name', 'airline_code': 'airline code',
+        'class_type': 'class type',
+        'round_trip': 'round trip',
+        'fare_basis_code': 'fare basis code',
+        'fare_amount': 'fare amount',
+        'meal': 'meal', 'meal_code': 'meal code', 'meal_description': 'meal description',
+        'flight_mod': 'flight modify', 'mod': 'modify', 'period_mod': 'period modify',
+        'stoploc': 'stop location',
+        'connect': 'connect',
+        'flight_number': 'flight number', 'flight_time': 'flight time', 'flight_stop': 'flight stop',
+        'flight_days': 'flight days',
+        'aircraft_code': 'aircraft code',
+        'or': 'or',
+        'restriction_code': 'restriction code',
+        'transport_type': 'transport type',
+        'economy': 'economy'
+    }
+
+    natural_intent_types = {
+        'atis_flight': 'flight',
+        'atis_airfare': 'airfare',
+        'atis_airline': 'airline',
+        'atis_aircraft': 'aircraft',
+        'atis_flight<DIV>atis_airfare': 'flight and airfare',
+        'atis_abbreviation': 'abbreviation',
+        'atis_ground_service': 'ground service',
+        'atis_meal': 'meal',
+        'atis_restriction': 'restriction',
+        'atis_quantity': 'quantity',
+        'atis_aircraft<DIV>atis_flight<DIV>atis_flight_no': 'aircraft and flight and flight number',
+        'atis_airport': 'airport',
+        'atis_ground_fare': 'ground fare',
+        'atis_airline<DIV>atis_flight_no': 'airline and flight number',
+        'atis_flight_time': 'flight time',
+        'atis_flight_no': 'flight number',
+        'atis_distance': 'distance',
+        'atis_city': 'city',
+        'atis_capacity': 'capacity',
+        'atis_cheapest': 'cheapest',
+        'atis_ground_service<DIV>atis_ground_fare': 'ground service and ground fare'
+    }
+
+    def convert_bio_to_entities(self, bio_tag: List[str]) -> Tuple[List[Entity], Entity]:
+        entities = []
+        current_entity = None
+        for ii, el in enumerate(bio_tag):
+            if el.startswith('B-'):
+                tag_type = el[2:]
+                if '.' in tag_type:
+                    natural = ' '.join([self.natural_entity_types[tag_part]
+                            if tag_part in self.natural_entity_types else tag_part
+                            for tag_part in tag_type.split('.')])
+                else:
+                    natural = self.natural_entity_types[tag_type] if tag_type in self.natural_entity_types else tag_type
+                current_entity = Entity(
+                    type=EntityType(
+                        short=tag_type,
+                        natural=natural
+                    ),
+                    start=ii,
+                    end=ii+1,
+                )
+                entities.append(current_entity)
+            elif el.startswith('I-'):
+                current_entity.end = ii + 1
+        return entities
+
 
 
 @register_dataset
@@ -1949,24 +2309,11 @@ class CONLL05SRLBrown(CONLL05SRL):
 @register_dataset
 class MultiWoz(BaseDataset):
     """
-    MultiWoz 2.1 dataset (Dialogue State Tracking).
+    MultiWoz dataset (Dialogue State Tracking).
 
-    To obtain the multi-woz 2.1 dataset in TANL format:
-        1. download the pre-processing script from trade-dst
-            - git clone https://github.com/jasonwu0731/trade-dst.git
-        2. update the dataset_url in file trade-dst/create_data.py line 309 to the url given below.
-           This step ensures you are using the MultiWoz 2.1 dataset vs. the 2.0 version.
-            - "https://www.repository.cam.ac.uk/bitstream/handle/1810/294507/MULTIWOZ2.1.zip?sequence=1&isAllowed=y"
-        3. on lines 320, 321, 322, and 323 change the multi-woz directory to the following:
-            - "data/multi-woz/MULTIWOZ2.1/"
-        4. run the trade-dst pre-processing script:
-            - python create_data.py
-        5. copy the script ./trade-dst/utils/fix_label.py to tanl/preprocess_multiwoz
-            - cp ./trade-dst/utils/fix_label.py tanl/preprocess_multiwoz
-        6. run prepare_multi_woz.py
-            - python prepare_multi_woz.py --data-dir ./trade-dst/data
-        7. move the saved splits to ./data/multi_woz
-            - mv ./trade-dst/data/splits ./data/multi_woz_2.1
+    Data was downloaded from https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.1.zip, and the
+    pre-processing script from https://github.com/jasonwu0731/trade-dst was used, as suggested in the official
+    MultiWoz repository https://github.com/budzianowski/multiwoz.
     """
     name = 'multi_woz'
     data_name = 'multi_woz_2.1'
