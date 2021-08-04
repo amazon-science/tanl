@@ -83,7 +83,8 @@ class BaseOutputFormat(ABC):
             padded_output_sentence = padded_output_sentence.replace(special_token, ' ' + special_token + ' ')
 
         intent = None
-        if self.BEGIN_INTENT_TOKEN in padded_output_sentence.split():
+        if self.BEGIN_INTENT_TOKEN in padded_output_sentence.split() and \
+                self.END_INTENT_TOKEN in padded_output_sentence.split():
             intent = padded_output_sentence.split(self.BEGIN_INTENT_TOKEN)[1].split(self.END_INTENT_TOKEN)[0].strip()
             padded_output_sentence = padded_output_sentence.split(self.END_INTENT_TOKEN)[1]   # remove intent from sentence
 
@@ -386,7 +387,12 @@ class JointICSLFormat(JointEROutputFormat):
         entity_types = set(entity_type.natural for entity_type in entity_types.values())
 
         # parse output sentence
-        intent, raw_predicted_entities, wrong_reconstruction = self.parse_output_sentence(example, output_sentence)
+        parse_tuple = self.parse_output_sentence(example, output_sentence)
+        if len(parse_tuple) < 3:
+            intent = ""
+            raw_predicted_entities, wrong_reconstruction = parse_tuple
+        else:
+            intent, raw_predicted_entities, wrong_reconstruction = parse_tuple
 
         # update predicted entities with the positions in the original sentence
         predicted_entities = set()

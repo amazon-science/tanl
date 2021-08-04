@@ -2309,7 +2309,24 @@ class CONLL05SRLBrown(CONLL05SRL):
 @register_dataset
 class MultiWoz(BaseDataset):
     """
-    MultiWoz dataset (Dialogue State Tracking).
+    MultiWoz 2.1 dataset (Dialogue State Tracking).
+
+    To obtain the multi-woz 2.1 dataset in TANL format:
+        1. download the pre-processing script from trade-dst
+            - git clone https://github.com/jasonwu0731/trade-dst.git
+        2. update the dataset_url in file trade-dst/create_data.py line 309 to the url given below.
+           This step ensures you are using the MultiWoz 2.1 dataset vs. the 2.0 version.
+            - "https://www.repository.cam.ac.uk/bitstream/handle/1810/294507/MULTIWOZ2.1.zip?sequence=1&isAllowed=y"
+        3. on lines 320, 321, 322, and 323 change the multi-woz directory to the following:
+            - "data/multi-woz/MULTIWOZ2.1/"
+        4. run the trade-dst pre-processing script:
+            - python create_data.py
+        5. copy the script ./trade-dst/utils/fix_label.py to tanl/preprocess_multiwoz
+            - cp ./trade-dst/utils/fix_label.py tanl/preprocess_multiwoz
+        6. run prepare_multi_woz.py
+            - python prepare_multi_woz.py --data-dir ./trade-dst/data
+        7. move the saved splits to ./data/multi_woz
+            - mv ./trade-dst/data/splits ./data/multi_woz_2.1
 
     Data was downloaded from https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.1.zip, and the
     pre-processing script from https://github.com/jasonwu0731/trade-dst was used, as suggested in the official
