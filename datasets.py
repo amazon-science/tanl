@@ -2327,10 +2327,6 @@ class MultiWoz(BaseDataset):
             - python prepare_multi_woz.py --data-dir ./trade-dst/data
         7. move the saved splits to ./data/multi_woz
             - mv ./trade-dst/data/splits ./data/multi_woz_2.1
-
-    Data was downloaded from https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.1.zip, and the
-    pre-processing script from https://github.com/jasonwu0731/trade-dst was used, as suggested in the official
-    MultiWoz repository https://github.com/budzianowski/multiwoz.
     """
     name = 'multi_woz'
     data_name = 'multi_woz_2.1'
