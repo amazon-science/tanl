@@ -1051,7 +1051,6 @@ class ATISDataset(SnipsDataset):
         return entities
 
 
-
 @register_dataset
 class ACE2005NERDataset(NERDataset):
     """
@@ -2306,7 +2305,7 @@ class CONLL05SRLBrown(CONLL05SRL):
 class MultiWoz(BaseDataset):
     """
     MultiWoz 2.1 dataset (Dialogue State Tracking).
-    
+
     To obtain the multi-woz 2.1 dataset in TANL format:
         1. download the pre-processing script from trade-dst
             - git clone https://github.com/jasonwu0731/trade-dst.git
