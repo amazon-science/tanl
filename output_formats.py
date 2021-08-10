@@ -27,8 +27,6 @@ class BaseOutputFormat(ABC):
     END_ENTITY_TOKEN = ']'
     SEPARATOR_TOKEN = '|'
     RELATION_SEPARATOR_TOKEN = '='
-    BEGIN_INTENT_TOKEN = "(("
-    END_INTENT_TOKEN = "))"
 
     @abstractmethod
     def format_output(self, example: InputExample) -> str:
@@ -78,16 +76,8 @@ class BaseOutputFormat(ABC):
         for special_token in [
             self.BEGIN_ENTITY_TOKEN, self.END_ENTITY_TOKEN,
             self.SEPARATOR_TOKEN, self.RELATION_SEPARATOR_TOKEN,
-            self.BEGIN_INTENT_TOKEN, self.END_INTENT_TOKEN
         ]:
             padded_output_sentence = padded_output_sentence.replace(special_token, ' ' + special_token + ' ')
-
-        intent = None
-        if self.BEGIN_INTENT_TOKEN in padded_output_sentence.split() and \
-                self.END_INTENT_TOKEN in padded_output_sentence.split():
-            intent = padded_output_sentence.split(self.BEGIN_INTENT_TOKEN)[1].split(self.END_INTENT_TOKEN)[0].strip()
-            padded_output_sentence = padded_output_sentence.split(self.END_INTENT_TOKEN)[1]   # remove intent from sentence
-
 
         entity_stack = []   # stack of the entities we are extracting from the output sentence
         # this is a list of lists [start, state, entity_name_tokens, entity_other_tokens]
@@ -232,8 +222,6 @@ class BaseOutputFormat(ABC):
                 entity_tuple = (entity_name, entity_tags, new_start, new_end + 1)
                 predicted_entities.append(entity_tuple)
 
-        if intent is not None:
-            return intent, predicted_entities, wrong_reconstruction
         return predicted_entities, wrong_reconstruction
 
 
@@ -362,7 +350,9 @@ class JointICSLFormat(JointEROutputFormat):
     Output format for joint intent classification and slot labeling.
     """
     name = 'joint_icsl'
-
+    BEGIN_INTENT_TOKEN = "(("
+    END_INTENT_TOKEN = "))"
+        
     def format_output(self, example: InputExample) -> str:
         """
         Get output in augmented natural language.
@@ -387,20 +377,36 @@ class JointICSLFormat(JointEROutputFormat):
         entity_types = set(entity_type.natural for entity_type in entity_types.values())
 
         # parse output sentence
-        parse_tuple = self.parse_output_sentence(example, output_sentence)
-        if len(parse_tuple) < 3:
-            intent = ""
-            raw_predicted_entities, wrong_reconstruction = parse_tuple
-        else:
-            intent, raw_predicted_entities, wrong_reconstruction = parse_tuple
+        # get intent
+        for special_token in [self.BEGIN_INTENT_TOKEN, self.END_INTENT_TOKEN]:
+            output_sentence.replace(special_token, ' ' + special_token + ' ')
+
+        output_sentence_tokens = output_sentence.split()
+
+        if self.BEGIN_INTENT_TOKEN in output_sentence_tokens and \
+                self.END_INTENT_TOKEN in output_sentence_tokens:
+            intent = output_sentence.split(self.BEGIN_INTENT_TOKEN)[1].split(self.END_INTENT_TOKEN)[0].strip()
+            output_sentence = output_sentence.split(self.END_INTENT_TOKEN)[1]   # remove intent from sentence
+
+        label_error = False     # whether the output sentence has at least one non-existing entity or relation type
+        format_error = False    # whether the augmented language format is invalid
+
+        if output_sentence.count(self.BEGIN_ENTITY_TOKEN) != output_sentence.count(self.END_ENTITY_TOKEN):
+            # the parentheses do not match
+            format_error = True
+
+        # parse output sentence
+        raw_predicted_entities, wrong_reconstruction = self.parse_output_sentence(example, output_sentence)
 
         # update predicted entities with the positions in the original sentence
+        predicted_entities_by_name = defaultdict(list)
         predicted_entities = set()
 
         # process and filter entities
         for entity_name, tags, start, end in raw_predicted_entities:
             if len(tags) == 0 or len(tags[0]) > 1:
                 # we do not have a tag for the entity type
+                format_error = True
                 continue
 
             entity_type = tags[0][0]
@@ -408,11 +414,11 @@ class JointICSLFormat(JointEROutputFormat):
             if entity_type in entity_types:
                 entity_tuple = (entity_type, start, end)
                 predicted_entities.add(entity_tuple)
+            else:
+                label_error = True
 
-        return intent, predicted_entities, wrong_reconstruction
-
-    
-
+        return intent, predicted_entities, wrong_reconstruction, label_error, format_error
+  
 
 @register_output_format
 class EventOutputFormat(JointEROutputFormat):

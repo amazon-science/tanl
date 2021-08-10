@@ -825,9 +825,7 @@ class SnipsDataset(NERDataset):
             output_sentence,
             entity_types=self.entity_types,
         )
-        predicted_intent, predicted_entities, wrong_reconstruction = res
-
-        label_error = entity_error = format_error = False
+        predicted_intent, predicted_entities, wrong_reconstruction, label_error, format_error = res
 
         predicted_entities_no_type = set([entity[1:] for entity in predicted_entities])
 
@@ -857,7 +855,6 @@ class SnipsDataset(NERDataset):
             'num_sentences': 1,
             'wrong_reconstructions': 1 if wrong_reconstruction else 0,
             'label_error': 1 if label_error else 0,
-            'entity_error': 1 if entity_error else 0,
             'format_error': 1 if format_error else 0, 
             'predicted_intent': 1 if len(predicted_intent) > 0 else 0,
             'gt_intent': 1,
@@ -944,7 +941,6 @@ class SnipsDataset(NERDataset):
         res = {
             'wrong_reconstruction': results['wrong_reconstructions'] / results['num_sentences'],
             'label_error': results['label_error'] / results['num_sentences'],
-            'entity_error': results['entity_error'] / results['num_sentences'],
             'format_error': results['format_error'] / results['num_sentences'],
             'intent_precision': intent_precision,
             'intent_recall': intent_recall,
@@ -2310,7 +2306,7 @@ class CONLL05SRLBrown(CONLL05SRL):
 class MultiWoz(BaseDataset):
     """
     MultiWoz 2.1 dataset (Dialogue State Tracking).
-
+    
     To obtain the multi-woz 2.1 dataset in TANL format:
         1. download the pre-processing script from trade-dst
             - git clone https://github.com/jasonwu0731/trade-dst.git
