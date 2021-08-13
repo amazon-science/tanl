@@ -62,6 +62,18 @@ class Relation:
 
 
 @dataclass
+class Intent:
+    """
+    The intent of an utterance.
+    """
+    short: str = None
+    natural: str = None
+
+    def __hash__(self):
+        return hash(self.short)
+
+
+@dataclass
 class InputExample:
     """
     A single training/test example.
@@ -73,6 +85,7 @@ class InputExample:
     # entity-relation extraction
     entities: List[Entity] = None      # list of entities
     relations: List[Relation] = None   # list of relations
+    intent: Optional[Intent] = None
 
     # event extraction
     triggers: List[Entity] = None               # list of event triggers
