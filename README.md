@@ -28,8 +28,8 @@ You can install all required Python packages with `pip install -r requirements.t
 By default, datasets are expected to be in `data/DATASET_NAME`.
 Dataset-specific code is in [datasets.py](datasets.py).
 
-For example, the CoNLL04 and ADE datasets (joint entity and relation extraction) in the correct format can be downloaded using https://github.com/markus-eberts/spert/blob/master/scripts/fetch_datasets.sh.
-For other datasets, pre-processing and links are documented in the code.
+The CoNLL04 and ADE datasets (joint entity and relation extraction) in the correct format can be downloaded using https://github.com/markus-eberts/spert/blob/master/scripts/fetch_datasets.sh.
+For other datasets, we provide sample processing code which does not necessarily match the format of publicly available versions (we do not plan to adapt the code to load datasets in other formats).
 
 
 
